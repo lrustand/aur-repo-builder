@@ -1,0 +1,26 @@
+#!/usr/bin/python
+from sys import path
+from subprocess import call
+from os import chdir
+import argparse, os
+
+repo_path   = "/srv/ftp/repos/aurbuild"
+db_path     = repo_path+"/"+repo_path.split("/")[-1]+".db.tar.gz"
+build_path  = "/tmp/aur-repo-builder/build" 
+pkg_list    = "list"
+
+pkgs = " ".join(open(pkg_list,"r").read().split())
+call("pbget --aur-only "+pkgs+" --dir "+build_path, shell=True)
+
+
+for p in pkgs.split():
+    try:
+        chdir(build_path+"/"+p)
+        exists=True
+    except:
+        exists=False
+    if exists:
+        call("makepkg -sc --noprogressbar --noconfirm "+p, shell=True)
+        call("mv "+p+"*.pkg.tar.xz "+repo_path+"/.", shell=True) 
+
+call("repo-add -R "+db_path+" "+repo_path+"/*.pkg.tar.xz", shell=True)
