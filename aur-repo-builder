@@ -1,26 +1,49 @@
 #!/usr/bin/python
-from sys import path
 from subprocess import call
 from os import chdir
-import argparse, os
+import argparse, os, sys
 
-repo_path   = "/srv/ftp/repos/aurbuild"
-db_path     = repo_path+"/"+repo_path.split("/")[-1]+".db.tar.gz"
-build_path  = "/tmp/aur-repo-builder/build" 
-pkg_list    = "list"
+repo_path   = ""
+db_path     = ""
+build_path  = ""
+pkg_list    = ""
 
-pkgs = " ".join(open(pkg_list,"r").read().split())
+pkgs        = ""
+
+def error(msg):
+    print("ERROR: "+msg)
+    exit()
+
+def warn(msg):
+    print("WARNING: "+msg)
+
+config_path = "/etc/aur-repo-builder/config.py"
+if os.path.exists(config_path):
+    sys.path.append("/".join(config_path.split("/")[:-1]))
+    from config import *
+else:
+    warn("No config file found")
+
+if pkgs == "":
+    if os.path.exists(pkg_list):
+        pkgs = " ".join(open(pkg_list,"r").read().split())
+    elif pkg_list == "":
+        error("No packages specified")
+    else:
+        error(pkg_list+" doesn't exist")
+
+
 call("pbget --aur-only "+pkgs+" --dir "+build_path, shell=True)
-
 
 for p in pkgs.split():
     try:
         chdir(build_path+"/"+p)
         exists=True
     except:
+        warn(p+" doesn't exist")
         exists=False
     if exists:
         call("makepkg -sc --noprogressbar --noconfirm "+p, shell=True)
-        call("mv "+p+"*.pkg.tar.xz "+repo_path+"/.", shell=True) 
+        call("mv "+p+"*.pkg.tar.xz "+repo_path+"/.", shell=True)
 
 call("repo-add -R "+db_path+" "+repo_path+"/*.pkg.tar.xz", shell=True)
